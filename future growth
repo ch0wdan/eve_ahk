@@ -1,0 +1,324 @@
+
+
+;;;;;;;;;;;;;; BELT WARP ;;;;;;;;;;;;;
+
+warptobelt:
+
+ToolTip, Slowing ship.., 800, 50
+loop, 2 {
+Send {Lcontrol down}
+Send {space}
+Send {Lcontrol up}
+sleep 1000
+}
+loop {
+	PixelSearch, x,y, 550, 747, 554, 750, 0x949494, 10
+		if (!ErrorLevel)
+			break
+}
+Loop {
+	PixelSearch, x,y, 491, 749, 493, 752, 0x949494, 10
+		if (!ErrorLevel)
+			break
+}
+ToolTip, Selecting next available belt, 800, 50
+click 784, 177
+sleep 500
+	PixelGetColor, box, 907, 200
+	if(box == 0x000000)
+		click 907, 200
+sleep 1000
+
+Loop
+{
+	if(Belt[A_index] == 1) {
+		global destination := Belt[A_Index]
+		beltx := beltx%A_Index%
+		belty := belty%A_Index%
+		break
+	}
+}
+
+
+;;;;;;;;;;;;;;;; WARP DRIVE SEQUENCE ;;;;;;;;;;;;;;;;;;
+
+
+click %beltx%, %belty%
+sleep 500
+Click, 774, 129
+Tooltip, Aligning for Warp.., 800, 50
+loop {
+	PixelSearch, x,y, 529, 752, 531, 754, 0x949494, 10
+		if (ErrorLevel)
+			break
+}
+click 802, 130
+ToolTip, Warping to next location.. , 800, 50
+loop {
+	PixelSearch, x,y, 550, 747, 554, 750, 0x949494, 10
+		if (ErrorLevel)
+			break
+}
+loop {
+	PixelSearch, x,y, 550, 747, 554, 750, 0x949494, 10
+		if (!ErrorLevel)
+			break
+}
+ToolTip, coming out of warp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Asteroid Lock ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+roidlock:
+
+ToolTip, Locking rocks, 800, 50
+roidsearch()
+click 814, 218
+sleep 500
+PixelSearch, x,y, 766, 213, 781, 227, 0xFFFFFF,,fast ;check if first rock locked
+	if ErrorLevel {
+		send {Lcontrol down}
+		click, 814, 218
+		send {Lcontrol up}
+		sleep 100
+		Asteroid_lock_start := A_TickCount
+	}
+Click, 830, 127
+sleep 500
+click 814, 237
+sleep 500
+PixelSearch, x,y, 829, 232, 840, 243, 0xC8C8C8, 10, fast  ;check second roid exist
+	if ErrorLevel
+	{
+		ToolTip second rock missing, 800, 50
+	}else {
+		click 814, 237
+		sleep 500
+		PixelSearch, x, y, 766, 232, 781, 238, 0xFFFFFF,,fast
+			if ErrorLevel {
+			lockcheck(9) ;check if second lock exists
+			send {Lcontrol down}
+			click, 814, 237
+			send {Lcontrol up}
+			Asteroid_lock_start := A_TickCount
+			}
+	}
+	ToolTip, Lock Finished.. , 800, 50
+	if(A_TickCount < Asteroid_lock_start + locktime) {
+		sleep (locktime - (A_TickCount - Asteroid_lock_start))
+	}
+
+
+;;;;;;;;;;;;; START MINING ;;;;;;;;;;;;;;
+
+cargocheck()
+click 814, 218
+sleep 500
+PixelSearch, x,y, 766, 213, 781, 227, 0xFFFFFF,,fast ;check if first rock locked
+	if ErrorLevel {
+		ToolTip, must be out of lock range or lost target.. approaching, 800, 50
+		sleep 10000
+		gosub roidlock
+	}else {
+		click 814, 218
+		sleep 100
+		send {F1}
+		sleep 500
+		ToolTip,  start first laser, 800, 50
+	}
+click 814, 237
+sleep 500
+PixelSearch, x, y, 766, 232, 781, 238, 0xFFFFFF,,fast
+	if ErrorLevel {
+		click 814, 218
+		sleep 100
+		send {F2}
+		sleep 500
+	}else {
+		click 814, 237
+		sleep 100
+		send {F2}
+		ToolTip start second laser, 800, 50
+		sleep 500
+	}
+
+sleep 2000
+laser_start := A_TickCount
+loop {
+
+	if(A_TickCount > laser_start + cycle_time) {
+		send {F1}
+		send {F2}
+	}
+	sleep 3000
+	ToolTip Mining..., 800, 50
+	PixelSearch, x2, y2, 610, 682, 620, 684, 0xB9BFBA, 25, fast
+	if (ErrorLevel) {
+		ToolTip
+		sleep 500
+			gosub roidlock
+		}
+
+	PixelSearch, x1, y1, 664, 682, 671, 684, 0xB9BFBA, 25, fast
+	if (ErrorLevel) {
+		click 814, 218
+			sleep 100
+			send {F2}
+		}
+	PixelSearch, x,y, 550, 747, 554, 750, 0x949494, 10
+		if (ErrorLevel)
+			send ^{space}
+	PixelSearch, x,y, 491, 749, 493, 752, 0x949494, 10
+		if (ErrorLevel)
+			send ^{space}
+}
+
+
+
+
+;;;;;;;;;;;;;; SEARCH BELT FOR ASTROIDS ;;;;;;;;;;;;;;
+
+roidsearch()
+{
+	MouseMove, 830, 178
+	sleep 500
+	ToolTip, searching for rocks, 800, 50
+	Click 830, 178
+	sleep 500
+	PixelGetColor, box, 840, 200
+		if(box == 0x000000)
+			click 840, 200
+	MouseMove, 830, 178
+	sleep 1000
+	PixelSearch, x,y, 830, 214, 860, 320, 0xC8C8C8, 5, fast
+		if ErrorLevel {
+			ToolTip No rocks.. moving on
+			belt.insert(destination, 0)
+			gosub warptobelt
+		}else {
+			ToolTip Rocks found
+			return
+			}
+}
+;;;;;;;;;;;;;;;;; LOCK CHECK ;;;;;;;;;;;;;;
+
+
+
+lockcheck(rock)
+{
+	if(rock == 1) {
+	click, 814, 218
+	sleep 500
+	PixelSearch, x,y, 766, 213, 781, 227, 0xFFFFFF,,fast
+		if ErrorLevel
+			return 1
+		else
+			return 0
+	}else if(rock == 2) {
+		click 814, 237
+		sleep 500
+		PixelSearch, x, y, 766, 232, 781, 238, 0xFFFFFF,,fast
+		if ErrorLevel
+			return 1
+		else
+			return 0
+	}else if(rock == 9) {
+		PixelSearch, x9, y9, 766, 252, 781, 568, 0xA8A8A8,,fast    ;check if second lock exists
+		if ErrorLevel
+			return
+		else {
+			send {ctrl down}
+			send {shift down}
+			click, %x9%, %y9%
+			send {shift up}
+			send {ctrl up}
+			sleep 500
+			return
+		}
+	}
+}
+
+
+cargocheck()
+{
+	isEveActive()
+	PixelGetColor, cargo, 504, 80
+	if(cargo <> 0x000000) {
+		gosub stationdock
+		gosub warptobelt
+	}else
+		return
+}
+
+stationdock:
+
+	ToolTip Cargo Full.. headed to station, 800, 50
+	click 880, 178
+	sleep 500
+	PixelGetColor, box, 907, 200
+		if(box == 0x000000)
+			click 907, 200
+	sleep 500
+	click 814, 218
+	sleep 500
+	click 824, 130
+	mousemove 740, 210
+	loop  {
+		PixelGetColor, station, 910, 206
+			if(station == 0x000000) {
+				break
+			}
+	}
+
+	ToolTip, Docking, 800, 50
+	loop {
+		PixelGetColor, station, 27, 379
+		if(station <> 0x000000)
+			break
+	}
+	ToolTip, Unloading Ore, 800, 50
+	sleep 5000
+	Click Right 217, 103
+	sleep 500
+	Click 259, 110
+	sleep 500
+	MouseClickDrag Left, 254, 140, 254, 390
+	sleep 3000
+	cargocheck()
+
+	ToolTip, Undocking, 800, 50
+	click 943, 229
+	Loop {
+		PixelGetColor, station, 910, 206
+		if(station <> 0x000000)
+			break
+	}
+	sleep 5000
+	ToolTip, Undock Successful, 800, 50
+	loop {
+		sleep 1000
+		ToolTip, Slowing ship for warp, 800, 50
+		Send {Lcontrol down}
+		Send {space}
+		Send {Lcontrol up}
+		PixelSearch, x,y, 550, 747, 554, 750, 0x949494, 10
+			if (!ErrorLevel)
+				break
+	}
+return
+
+^+C::
+ExitApp
+return
+
+
+isEveActive()
+{
+	WinWait, EVE,
+	IfWinNotActive, EVE, , WinActivate, EVE,
+	WinWaitActive, EVE,
+	IfWinActive, EVE
+		return 1
+	else
+		return 0
+}
+
++p::pause
